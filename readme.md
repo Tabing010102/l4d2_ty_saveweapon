@@ -1,5 +1,7 @@
 # L4D2 coop save weapon
 
+**OLD CODE**
+
 A sourcemod plugin for Left 4 Dead 2 Dedicated Server, which save weapon for 5+ players.
 
 This plugin does NOT use any .cfg file.
@@ -7,6 +9,8 @@ This plugin does NOT use any .cfg file.
 plugins/l4d2_ty_saveweapon_4.smx is the precompiled file, which can be used on the server directly.
 
 This modified version has added support to coop mutations and removed giving default primary weapon to survivors that does not have one.
+
+**老代码**
 
 L4D2 服务器5+玩家保存武器插件。
 
