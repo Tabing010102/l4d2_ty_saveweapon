@@ -1,10 +1,11 @@
 /**
  * =============================================================================
- * Copyright 2011 - 2021 steamcommunity.com/profiles/76561198025355822/
+ * L4D2 coop save weapon
+ * Copyright 2011 - 2020 steamcommunity.com/profiles/76561198025355822/
  * Fixed 2015 steamcommunity.com/id/Electr0n
  * Fixed 2016 steamcommunity.com/id/mixjayrus
  * Fixed 2016 user Merudo
- *
+ * Modified 2020 Tabing010102
  * =============================================================================
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -13,18 +14,18 @@
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program. If not, see <www.gnu.org/licenses/>.
+ * this program.  If not, see <www.gnu.org/licenses/>.
  *
  * As a special exception, AlliedModders LLC gives you permission to link the
  * code of this program (as well as its derivative works) to "Half-Life 2," the
  * "Source Engine," the "SourcePawn JIT," and any Game MODs that run on software
- * by the Valve Corporation. You must obey the GNU General Public License in
- * all respects for all other code used. Additionally, AlliedModders LLC grants
- * this exception to all derivative works. AlliedModders LLC defines further
+ * by the Valve Corporation.  You must obey the GNU General Public License in
+ * all respects for all other code used.  Additionally, AlliedModders LLC grants
+ * this exception to all derivative works.  AlliedModders LLC defines further
  * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
  * or <www.sourcemod.net/license.php>.
  *
@@ -34,18 +35,37 @@
 #include <sdktools>
 #pragma newdecls required
 
+const int g_CoopGMCount = 17;
+char g_CoopGameModes[][] = {
+	"coop", // Coop
+	"realism", // Realism coop
+	"mutation2", // Headshot!
+	"mutation3", // Bleed Out
+	"mutation4", // Hard Eight
+	//"mutation5", // Four Swordsmen
+	//"mutation7", // Chainsaw Massacre
+	"hardcore", // Ironman realism
+	"mutation9", // Last Gnome On Earth
+	//"m60s", // Gib Fest
+	"mutation16", // Hunting Party
+	"mutation20", // Healing Gnome
+	"community1", // Special Delivery
+	"community2", // Flu Season
+	"community5", // Death's Door
+	"l4d1coop", // Left 4 Dead 1 Coop
+	"holdout", // Holdout
+	"dash", // Dash
+	"shootzones", // Shootzones
+	"tankrun" // Tank Run
+	//"rocketdude" // RocketDude
+};
+
 char sg_buffer0[64];
 char sg_buffer1[40];
 char sg_buffer2[32];
 char sg_buffer3[24];
 
 char sg_slot0[MAXPLAYERS+1][40];
-char sg_slot1[MAXPLAYERS+1][40];
-char sg_slot2[MAXPLAYERS+1][40];
-char sg_slot3[MAXPLAYERS+1][40];
-char sg_slot4[MAXPLAYERS+1][40];
-char sg_defib[MAXPLAYERS+1][40];
-
 int ig_prop0[MAXPLAYERS+1]; /* m_iClip1 slot 0 */
 int ig_prop1[MAXPLAYERS+1]; /* m_iClip1 slot 1 */
 int ig_prop2[MAXPLAYERS+1]; /* m_upgradeBitVec slot 0 */
@@ -53,18 +73,24 @@ int ig_prop3[MAXPLAYERS+1]; /* m_nUpgradedPrimaryAmmoLoaded slot 0 */
 int ig_prop4[MAXPLAYERS+1]; /* m_nSkin slot 0 */
 int ig_prop5[MAXPLAYERS+1]; /* m_nSkin slot 1 */
 
-int ig_coop;
-int ig_protection;
+char sg_slot1[MAXPLAYERS+1][40];
+char sg_slot2[MAXPLAYERS+1][40];
+char sg_slot3[MAXPLAYERS+1][40];
+char sg_slot4[MAXPLAYERS+1][40];
 
+char sg_defib[MAXPLAYERS+1][40];
+
+int ig_coop;
+//int ig_time;
+int ig_protection;
 ConVar hg_health;
-ConVar hg_noob;
 
 public Plugin myinfo =
 {
 	name = "[L4D2] Save Weapon",
 	author = "MAKS",
 	description = "L4D2 coop save weapon",
-	version = "4.14",
+	version = "4.10.2",
 	url = "forums.alliedmods.net/showthread.php?p=2304407"
 };
 
@@ -75,28 +101,34 @@ public void OnPluginStart()
 	HookEvent("defibrillator_used", Event_DefibUsed);
 	HookEvent("map_transition", Event_MapTransition, EventHookMode_PostNoCopy);
 
-	hg_health = CreateConVar("l4d2_hx_health", "1", "", FCVAR_NONE, true, 0.0, true, 1.0);
-	hg_noob = CreateConVar("l4d2_hx_noob", "1", "", FCVAR_NONE, true, 0.0, true, 1.0);
+	hg_health = CreateConVar("l4d2_hx_health", "0", "", FCVAR_NONE, true, 0.0, true, 1.0);
 }
 
 void HxPrecache()
 {
-/* survivors */
-	if (!IsModelPrecached("models/survivors/survivor_teenangst.mdl"))
+	if (!IsModelPrecached("models/survivors/survivor_biker.mdl"))
 	{
-		PrecacheModel("models/survivors/survivor_teenangst.mdl", false);
+		PrecacheModel("models/survivors/survivor_biker.mdl", false);
 	}
 	if (!IsModelPrecached("models/survivors/survivor_manager.mdl"))
 	{
 		PrecacheModel("models/survivors/survivor_manager.mdl", false);
 	}
+	if (!IsModelPrecached("models/survivors/survivor_teenangst.mdl"))
+	{
+		PrecacheModel("models/survivors/survivor_teenangst.mdl", false);
+	}
+	if (!IsModelPrecached("models/survivors/survivor_coach.mdl"))
+	{
+		PrecacheModel("models/survivors/survivor_coach.mdl", false);
+	}
+	if (!IsModelPrecached("models/survivors/survivor_gambler.mdl"))
+	{
+		PrecacheModel("models/survivors/survivor_gambler.mdl", false);
+	}
 	if (!IsModelPrecached("models/survivors/survivor_namvet.mdl"))
 	{
 		PrecacheModel("models/survivors/survivor_namvet.mdl", false);
-	}
-	if (!IsModelPrecached("models/survivors/survivor_biker.mdl"))
-	{
-		PrecacheModel("models/survivors/survivor_biker.mdl", false);
 	}
 	if (!IsModelPrecached("models/survivors/survivor_mechanic.mdl"))
 	{
@@ -106,76 +138,57 @@ void HxPrecache()
 	{
 		PrecacheModel("models/survivors/survivor_producer.mdl", false);
 	}
-	if (!IsModelPrecached("models/survivors/survivor_gambler.mdl"))
-	{
-		PrecacheModel("models/survivors/survivor_gambler.mdl", false);
-	}
-	if (!IsModelPrecached("models/survivors/survivor_coach.mdl"))
-	{
-		PrecacheModel("models/survivors/survivor_coach.mdl", false);
-	}
-/* witch */
-	if (!IsModelPrecached("models/infected/witch_bride.mdl"))
-	{
-		PrecacheModel("models/infected/witch_bride.mdl", false);
-	}
 	if (!IsModelPrecached("models/infected/witch.mdl"))
 	{
 		PrecacheModel("models/infected/witch.mdl", false);
 	}
-/* melee w*/
-	if (!IsModelPrecached("models/weapons/melee/w_electric_guitar.mdl"))
+	if (!IsModelPrecached("models/infected/witch_bride.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/w_electric_guitar.mdl", false);
+		PrecacheModel("models/infected/witch_bride.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/w_cricket_bat.mdl"))
+	if (!IsModelPrecached("models/v_models/v_rif_sg552.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/w_cricket_bat.mdl", false);
+		PrecacheModel("models/v_models/v_rif_sg552.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/w_frying_pan.mdl"))
+	if (!IsModelPrecached("models/v_models/v_smg_mp5.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/w_frying_pan.mdl", false);
+		PrecacheModel("models/v_models/v_smg_mp5.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/w_riotshield.mdl"))
+	if (!IsModelPrecached("models/v_models/v_snip_awp.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/w_riotshield.mdl", false);
+		PrecacheModel("models/v_models/v_snip_awp.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/w_pitchfork.mdl"))
+	if (!IsModelPrecached("models/v_models/v_snip_scout.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/w_pitchfork.mdl", false);
+		PrecacheModel("models/v_models/v_snip_scout.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/w_golfclub.mdl"))
+	if (!IsModelPrecached("models/w_models/weapons/50cal.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/w_golfclub.mdl", false);
+		PrecacheModel("models/w_models/weapons/50cal.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/w_crowbar.mdl"))
+	if (!IsModelPrecached("models/w_models/weapons/w_knife_t.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/w_crowbar.mdl", false);
+		PrecacheModel("models/w_models/weapons/w_knife_t.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/w_machete.mdl"))
+	if (!IsModelPrecached("models/w_models/weapons/w_rifle_sg552.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/w_machete.mdl", false);
+		PrecacheModel("models/w_models/weapons/w_rifle_sg552.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/w_katana.mdl"))
+	if (!IsModelPrecached("models/w_models/weapons/w_smg_mp5.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/w_katana.mdl", false);
+		PrecacheModel("models/w_models/weapons/w_smg_mp5.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/w_shovel.mdl"))
+	if (!IsModelPrecached("models/w_models/weapons/w_sniper_awp.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/w_shovel.mdl", false);
+		PrecacheModel("models/w_models/weapons/w_sniper_awp.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/w_tonfa.mdl"))
+	if (!IsModelPrecached("models/w_models/weapons/w_sniper_scout.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/w_tonfa.mdl", false);
+		PrecacheModel("models/w_models/weapons/w_sniper_scout.mdl", false);
 	}
-/* melee v*/
-	if (!IsModelPrecached("models/weapons/melee/v_electric_guitar.mdl"))
+	if (!IsModelPrecached("models/weapons/melee/v_fireaxe.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/v_electric_guitar.mdl", false);
-	}
-	if (!IsModelPrecached("models/weapons/melee/v_cricket_bat.mdl"))
-	{
-		PrecacheModel("models/weapons/melee/v_cricket_bat.mdl", false);
+		PrecacheModel("models/weapons/melee/v_fireaxe.mdl", false);
 	}
 	if (!IsModelPrecached("models/weapons/melee/v_frying_pan.mdl"))
 	{
@@ -185,47 +198,53 @@ void HxPrecache()
 	{
 		PrecacheModel("models/weapons/melee/v_golfclub.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/v_fireaxe.mdl"))
-	{
-		PrecacheModel("models/weapons/melee/v_fireaxe.mdl", false);
-	}
-	if (!IsModelPrecached("models/weapons/melee/v_crowbar.mdl"))
-	{
-		PrecacheModel("models/weapons/melee/v_crowbar.mdl", false);
-	}
 	if (!IsModelPrecached("models/weapons/melee/v_machete.mdl"))
 	{
 		PrecacheModel("models/weapons/melee/v_machete.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/v_katana.mdl"))
+	if (!IsModelPrecached("models/weapons/melee/w_cricket_bat.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/v_katana.mdl", false);
+		PrecacheModel("models/weapons/melee/w_cricket_bat.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/v_shovel.mdl"))
+	if (!IsModelPrecached("models/weapons/melee/w_crowbar.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/v_shovel.mdl", false);
+		PrecacheModel("models/weapons/melee/w_crowbar.mdl", false);
 	}
-	if (!IsModelPrecached("models/weapons/melee/v_tonfa.mdl"))
+	if (!IsModelPrecached("models/weapons/melee/w_electric_guitar.mdl"))
 	{
-		PrecacheModel("models/weapons/melee/v_tonfa.mdl", false);
+		PrecacheModel("models/weapons/melee/w_electric_guitar.mdl", false);
 	}
-/* w models */
-	if (!IsModelPrecached("models/w_models/weapons/w_knife_t.mdl"))
+	if (!IsModelPrecached("models/weapons/melee/w_frying_pan.mdl"))
 	{
-		PrecacheModel("models/w_models/weapons/w_knife_t.mdl", false);
+		PrecacheModel("models/weapons/melee/w_frying_pan.mdl", false);
 	}
-	if (!IsModelPrecached("models/w_models/weapons/50cal.mdl"))
+	if (!IsModelPrecached("models/weapons/melee/w_golfclub.mdl"))
 	{
-		PrecacheModel("models/w_models/weapons/50cal.mdl", false);
+		PrecacheModel("models/weapons/melee/w_golfclub.mdl", false);
 	}
-/* v models */
-	if (!IsModelPrecached("models/v_models/v_knife_t.mdl"))
+	if (!IsModelPrecached("models/weapons/melee/w_katana.mdl"))
 	{
-		PrecacheModel("models/v_models/v_knife_t.mdl", false);
+		PrecacheModel("models/weapons/melee/w_katana.mdl", false);
+	}
+	if (!IsModelPrecached("models/weapons/melee/w_machete.mdl"))
+	{
+		PrecacheModel("models/weapons/melee/w_machete.mdl", false);
+	}
+	if (!IsModelPrecached("models/weapons/melee/w_tonfa.mdl"))
+	{
+		PrecacheModel("models/weapons/melee/w_tonfa.mdl", false);
+	}
+	if (!IsModelPrecached("models/weapons/melee/w_shovel.mdl"))
+	{
+		PrecacheModel("models/weapons/melee/w_shovel.mdl", false);
+	}
+	if (!IsModelPrecached("models/weapons/melee/w_pitchfork.mdl"))
+	{
+		PrecacheModel("models/weapons/melee/w_pitchfork.mdl", false);
 	}
 }
 
-int HxGameMode()
+/*int HxGameMode()
 {
 	GetConVarString(FindConVar("mp_gamemode"), sg_buffer3, sizeof(sg_buffer3)-1);
 	if (!strcmp(sg_buffer3, "coop", true))
@@ -234,10 +253,26 @@ int HxGameMode()
 	}
 	if (!strcmp(sg_buffer3, "realism", true))
 	{
-		return 1;
+		return 2;
 	}
 
 	return 0;
+}*/
+
+int HxGameMode()
+{
+	bool g_IsCoop = false;
+	GetConVarString(FindConVar("mp_gamemode"), sg_buffer3, sizeof(sg_buffer3));
+	for (int i = 0; i < g_CoopGMCount; i++)
+	{
+		if (StrEqual(sg_buffer3, g_CoopGameModes[i], true))
+		{
+			g_IsCoop = true;
+			break;
+		}
+	}
+	if(g_IsCoop) return 1;
+	else return 0;
 }
 
 void HxCleaning(int &client)
@@ -254,19 +289,7 @@ void HxCleaning(int &client)
 	sg_slot2[client][0] = '\0';
 	sg_slot3[client][0] = '\0';
 	sg_slot4[client][0] = '\0';
-
 	sg_defib[client][0] = '\0';
-}
-
-void HxRemoveWeapon(int &client, int &entity)
-{
-	if (entity > 0)
-	{
-		if (RemovePlayerItem(client, entity))
-		{
-			AcceptEntityInput(entity, "Kill");
-		}
-	}
 }
 
 void HxKickC(int &client)
@@ -285,10 +308,26 @@ void HxKickC(int &client)
 			iSlot3 = GetPlayerWeaponSlot(client, 3);
 			iSlot4 = GetPlayerWeaponSlot(client, 4);
 
-			HxRemoveWeapon(client, iSlot0);
-			HxRemoveWeapon(client, iSlot2);
-			HxRemoveWeapon(client, iSlot3);
-			HxRemoveWeapon(client, iSlot4);
+			if (iSlot0 > 0)
+			{
+				RemovePlayerItem(client, iSlot0);
+				AcceptEntityInput(iSlot0, "Kill");
+			}
+			if (iSlot2 > 0)
+			{
+				RemovePlayerItem(client, iSlot2);
+				AcceptEntityInput(iSlot2, "Kill");
+			}
+			if (iSlot3 > 0)
+			{
+				RemovePlayerItem(client, iSlot3);
+				AcceptEntityInput(iSlot3, "Kill");
+			}
+			if (iSlot4 > 0)
+			{
+				RemovePlayerItem(client, iSlot4);
+				AcceptEntityInput(iSlot4, "Kill");
+			}
 		}
 	}
 
@@ -428,7 +467,8 @@ void HxSaveC(int &client)
 				ig_prop2[client] = GetEntProp(iSlot0, Prop_Send, "m_upgradeBitVec", 4);
 				ig_prop3[client] = GetEntProp(iSlot0, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", 4);
 				ig_prop4[client] = GetEntProp(iSlot0, Prop_Send, "m_nSkin", 4);
-				HxRemoveWeapon(client, iSlot0);
+				//RemovePlayerItem(client, iSlot0);
+				AcceptEntityInput(iSlot0, "Kill");
 			}
 			if (iSlot1 > 0)
 			{
@@ -438,17 +478,20 @@ void HxSaveC(int &client)
 			if (iSlot2 > 0)
 			{
 				GetEdictClassname(iSlot2, sg_slot2[client], 39);
-				HxRemoveWeapon(client, iSlot2);
+				//RemovePlayerItem(client, iSlot2);
+				AcceptEntityInput(iSlot2, "Kill");
 			}
 			if (iSlot3 > 0)
 			{
 				GetEdictClassname(iSlot3, sg_slot3[client], 39);
-				HxRemoveWeapon(client, iSlot3);
+				//RemovePlayerItem(client, iSlot3);
+				AcceptEntityInput(iSlot3, "Kill");
 			}
 			if (iSlot4 > 0)
 			{
 				GetEdictClassname(iSlot4, sg_slot4[client], 39);
-				HxRemoveWeapon(client, iSlot4);
+				//RemovePlayerItem(client, iSlot4);
+				AcceptEntityInput(iSlot4, "Kill");
 			}
 		}
 	}
@@ -478,11 +521,31 @@ void HxGiveC(int &client)
 		iSlot3 = GetPlayerWeaponSlot(client, 3);
 		iSlot4 = GetPlayerWeaponSlot(client, 4);
 
-		HxRemoveWeapon(client, iSlot0);
-		HxRemoveWeapon(client, iSlot1);
-		HxRemoveWeapon(client, iSlot2);
-		HxRemoveWeapon(client, iSlot3);
-		HxRemoveWeapon(client, iSlot4);
+		if (iSlot0 > 0)
+		{
+			RemovePlayerItem(client, iSlot0);
+			AcceptEntityInput(iSlot0, "Kill");
+		}
+		if (iSlot1 > 0)
+		{
+			RemovePlayerItem(client, iSlot1);
+			AcceptEntityInput(iSlot1, "Kill");
+		}
+		if (iSlot2 > 0)
+		{
+			RemovePlayerItem(client, iSlot2);
+			AcceptEntityInput(iSlot2, "Kill");
+		}
+		if (iSlot3 > 0)
+		{
+			RemovePlayerItem(client, iSlot3);
+			AcceptEntityInput(iSlot3, "Kill");
+		}
+		if (iSlot4 > 0)
+		{
+			RemovePlayerItem(client, iSlot4);
+			AcceptEntityInput(iSlot4, "Kill");
+		}
 
 		if (sg_slot0[client][0] != '\0')
 		{
@@ -493,14 +556,14 @@ void HxGiveC(int &client)
 			SetEntProp(iSlot0, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", ig_prop3[client], 4);
 			SetEntProp(iSlot0, Prop_Send, "m_nSkin", ig_prop4[client], 4);
 		}
-		else
+		/*else
 		{
-			if (GetConVarBool(hg_noob))
+			if (ig_time > GetTime())
 			{
 				HxFakeCHEAT(client, "give", "smg_silenced");
 				SetEntProp(GetPlayerWeaponSlot(client, 0), Prop_Send, "m_iClip1", 50, 4);
 			}
-		}
+		}*/
 
 		if (sg_slot1[client][0] != '\0')
 		{
@@ -557,7 +620,7 @@ public Action HxTimerConnected(Handle timer, any client)
 				return Plugin_Stop;
 			}
 		}
-		CreateTimer(2.0, HxTimerConnected, client, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(0.1, HxTimerConnected, client, TIMER_FLAG_NO_MAPCHANGE);
 	}
 
 	return Plugin_Stop;
@@ -591,7 +654,7 @@ public void OnClientPostAdminCheck(int client)
 	{
 		if (ig_coop)
 		{
-			CreateTimer(5.5, HxTimerConnected, client, TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(0.1, HxTimerConnected, client, TIMER_FLAG_NO_MAPCHANGE);
 		}
 	}
 }
@@ -629,18 +692,19 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 {
 	if (ig_coop)
 	{
-		CreateTimer(1.2, HxTimerRS, _, TIMER_FLAG_NO_MAPCHANGE);
+		//ig_time = GetTime() + 45;
+		CreateTimer(0.1, HxTimerRS, _, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
 public void Event_ItemPickup(Event event, const char[] name, bool dontBroadcast)
 {
-	int iUserid = GetClientOfUserId(event.GetInt("userid"));
+	int iUserid = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (iUserid > 0)
 	{
 		if (!IsFakeClient(iUserid))
 		{
-			event.GetString("item", sg_buffer1, sizeof(sg_buffer1)-1);
+			GetEventString(event, "item", sg_buffer1, sizeof(sg_buffer1)-1);
 			if (!strcmp(sg_buffer1, "pistol_magnum", true))
 			{
 				sg_defib[iUserid] = "pistol_magnum";
@@ -672,7 +736,11 @@ public Action HxTimerDefib(Handle timer, any client)
 				if (sg_defib[client][0] != '\0')
 				{
 					int iSlot1 = GetPlayerWeaponSlot(client, 1);
-					HxRemoveWeapon(client, iSlot1);
+					if (iSlot1 > 0)
+					{
+						RemovePlayerItem(client, iSlot1);
+						AcceptEntityInput(iSlot1, "Kill");
+					}
 					HxFakeCHEAT(client, "give", sg_defib[client]);
 				}
 			}
@@ -684,12 +752,12 @@ public Action HxTimerDefib(Handle timer, any client)
 
 public void Event_DefibUsed(Event event, const char[] name, bool dontBroadcast)
 {
-	int iSubject = GetClientOfUserId(event.GetInt("subject"));
+	int iSubject = GetClientOfUserId(GetEventInt(event, "subject"));
 	if (iSubject > 0)
 	{
 		if (ig_coop)
 		{
-			CreateTimer(1.0, HxTimerDefib, iSubject, TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(0.1, HxTimerDefib, iSubject, TIMER_FLAG_NO_MAPCHANGE);
 		}
 	}
 }
@@ -703,9 +771,9 @@ public void Event_MapTransition(Event event, const char[] name, bool dontBroadca
 	{
 		while (i <= MaxClients)
 		{
-			HxCleaning(i);
 			if (IsClientInGame(i))
 			{
+				HxCleaning(i);
 				if (IsFakeClient(i))
 				{
 					HxKickC(i);
